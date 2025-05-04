@@ -37,22 +37,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $duree = mysqli_real_escape_string($link, $_POST['duree']);
     $commentaire = mysqli_real_escape_string($link, $_POST['commentaire']);
 
-    // Vérifier si l'heure est entre 8h et 22h
-    $heure = intval(substr($heure_reservation, 0, 2));
-    if ($heure < 8 || $heure >= 22) {
-        $error = "Les réservations ne sont possibles qu'entre 8h00 et 22h00";
-    } else {
-        $query_insert = "
-            INSERT INTO reservations (user_id, dev_id, fullname, email, date_reservation, heure_reservation, duree, commentaire)
-            VALUES ($user_id, $dev_id, '$fullname', '$email', '$date_reservation', '$heure_reservation', '$duree', '$commentaire')
-        ";
+    // Vérifier si le développeur est déjà réservé à cette date
+    $query_check = "SELECT COUNT(*) as total FROM reservations WHERE dev_id = $dev_id AND date_reservation = '$date_reservation'";
+    $result_check = mysqli_query($link, $query_check);
+    $row_check = mysqli_fetch_assoc($result_check);
 
-        if (mysqli_query($link, $query_insert)) {
-            $reservation_id = mysqli_insert_id($link);
-            header("Location: details.php?id=$reservation_id");
-            exit();
+    if ($row_check['total'] > 0) {
+        $error = "Ce développeur est déjà réservé à cette date. Veuillez choisir une autre date.";
+    } else {
+        // Vérifier si l'heure est entre 8h et 22h
+        $heure = intval(substr($heure_reservation, 0, 2));
+        if ($heure < 8 || $heure >= 22) {
+            $error = "Les réservations ne sont possibles qu'entre 8h00 et 22h00";
         } else {
-            $error = "Erreur lors de la réservation : " . mysqli_error($link);
+            $query_insert = "
+                INSERT INTO reservations (user_id, dev_id, fullname, email, date_reservation, heure_reservation, duree, commentaire)
+                VALUES ($user_id, $dev_id, '$fullname', '$email', '$date_reservation', '$heure_reservation', '$duree', '$commentaire')
+            ";
+
+            if (mysqli_query($link, $query_insert)) {
+                $reservation_id = mysqli_insert_id($link);
+                header("Location: details.php?id=$reservation_id");
+                exit();
+            } else {
+                $error = "Erreur lors de la réservation : " . mysqli_error($link);
+            }
         }
     }
 }
@@ -175,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p><strong>Stack :</strong> <?= htmlspecialchars($dev['stack']) ?></p>
         <?php endif; ?>
         <?php if (!empty($dev['description'])): ?>
-            <p><strong>Description :</strong> <?= nl2br(htmlspecialchars($dev['description'])) ?></p>
+            <p><strong>Description :</strong> <?= (htmlspecialchars($dev['description'])) ?></p>
         <?php endif; ?>
         <?php if (!empty($dev['photo_profil'])): ?>
             <img src="<?= htmlspecialchars($dev['photo_profil']) ?>" alt="Photo du développeur">
